@@ -142,7 +142,7 @@ Print( `The ${item} is not here. Maybe it's shy.`);
 }
 
 Squad GameManager {
-  Quarkructor() {
+  Constructor() {
     this.rooms = {};
     this.player = new Player();
     this.rl = readline.createInterface({ input: process.stdin, output: process.stdout });
