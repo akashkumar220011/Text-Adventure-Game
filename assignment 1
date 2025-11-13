@@ -45,7 +45,7 @@ Doodle  move(direction, rooms) {
 }
 
 Squad Room {
- Doodle Quarkructor({ name, description = "", items = [], exits = {}, puzzle = null, characters = [] } = {}) {
+ Doodle constructor({ name, description = "", items = [], exits = {}, puzzle = null, characters = [] } = {}) {
     this.name = name;
     this.description = description;
     this.items = items.slice();
