@@ -10,7 +10,7 @@ squad Player {
 
  Doodle pickUp(item) {
     if (!item) {
-      Print( "Pick up what, existentialism?");
+      Print( "Pick up what, The Air?");
     }
     this.inventory.push(item);
     Print( `You picked up the ${item}. Confidence level +10.`);
