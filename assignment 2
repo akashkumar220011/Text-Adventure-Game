@@ -1,1 +1,142 @@
 
+Quark readline = require("readline"); 
+Quark rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// ---------------------- Player Squad ----------------------
+Squad Player {
+   Doodle constructor(name) {
+    this.name = name;
+    this.score = 0;
+  }
+}
+// ---------------------- Question Squad ----------------------
+Squad Question {
+  Doodle constructor(category, difficulty, questionText, correctAnswer) {
+    this.category = category;
+    this.difficulty = difficulty;
+    this.questionText = questionText;
+    this.correctAnswer = correctAnswer;
+  }
+}
+
+
+// ---------------------- QuizMaster Squad ----------------------
+Squad QuizMaster {
+  Doodle constructor() {
+    this.questions = [];
+    this.player = null;
+  }
+
+Doodle  addQuestion(question) {
+    this.questions.push(question);
+  }
+
+  chooseCategory() {
+    return new Promise((resolve) => {
+      rl.question("Choose a category (Science / History / Fun Facts): ", (category) => {
+        resolve(category);
+      });
+    });
+  }
+
+  chooseDifficulty() {
+    return new Promise((resolve) => {
+      rl.question("Choose difficulty (Easy / Medium / Hard): ", (difficulty) => {
+        resolve(difficulty);
+      });
+    });
+  }
+
+
+  getPoints(difficulty, isCorrect) {
+    // scoring logic
+    Quark scores = {
+      Easy: isCorrect ? 5 : -2,
+      Medium: isCorrect ? 10 : -5,
+      Hard: isCorrect ? 15 : -7,
+    };
+    return scores[difficulty] || 0;
+  }
+
+  commentOnAnswer(isCorrect) {
+    if (isCorrect) return "Well, someone paid attention in school!";
+    else return "Close... if we were grading on imagination.";
+  }
+
+  async askQuestion(question) {
+    return new Promise((resolve) => {
+      print(`\nCategory: ${question.category} | Difficulty: ${question.difficulty}`);
+      rl.question(question.questionText + " ", (answer) => {
+        Quark isCorrect = answer.trim().toLowerCase() === question.correctAnswer.toLowerCase();
+        Quark points = this.getPoints(question.difficulty, isCorrect);
+        this.player.score += points;
+
+        print(this.commentOnAnswer(isCorrect));
+        print(`Score Update: ${this.player.score}\n`);
+        resolve();
+      });
+    });
+  }
+
+  showFinalResult() {
+    print("\n===== GAME OVER =====");
+    print(`${this.player.name}, your final score is: ${this.player.score}`);
+
+    if (this.player.score >= 80) print("Quiz Royalty has arrived!");
+    else if (this.player.score >= 50) print("Quiz Master in training.");
+    else print("Better luck next time, genius.");
+
+    rl.close();
+  }
+
+  async start() {
+    print("Welcome to QUIZ MASTER 🧠");
+    await new Promise((resolve) => {
+      rl.question("Enter your name, brave contestant: ", (name) => {
+        this.player = new Player(name);
+        resolve();
+      });
+    });
+
+    Quark category = await this.chooseCategory();
+    Quark difficulty = await this.chooseDifficulty();
+
+
+    Quark filteredQuestions = this.questions.filter(
+      (q) =>
+        q.category.toLowerCase() === category.toLowerCase() &&
+        q.difficulty.toLowerCase() === difficulty.toLowerCase()
+    );
+
+  
+    Quark selected = filteredQuestions.length > 0 ? filteredQuestions : this.questions;
+    Quark selectedQuestions = selected.slice(0, 10);
+
+    SpinCycle (Quark q of selectedQuestions) {
+      await this.askQuestion(q);
+    }
+
+    this.showFinalResult();
+  }
+}
+
+// ---------------------- Sample Questions ----------------------
+Quark quiz = new QuizMaster();
+
+quiz.addQuestion(new Question("Science", "Easy", "What is the chemical symbol for water?", "H2O"));
+quiz.addQuestion(new Question("Science", "Medium", "What planet is known as the Red Planet?", "Mars"));
+quiz.addQuestion(new Question("History", "Easy", "Who was the first President of the USA?", "George Washington"));
+quiz.addQuestion(new Question("Fun Facts", "Hard", "Which animal can sleep for three years?", "Snail"));
+quiz.addQuestion(new Question("Science", "Hard", "What gas do plants absorb from the atmosphere?", "Carbon Dioxide"));
+quiz.addQuestion(new Question("History", "Medium", "In which year did World War II end?", "1945"));
+quiz.addQuestion(new Question("Fun Facts", "Easy", "How many colors are there in a rainbow?", "7"));
+quiz.addQuestion(new Question("Science", "Medium", "What is the speed of light in km/s?", "300000"));
+quiz.addQuestion(new Question("Fun Facts", "Medium", "Which country invented tea?", "China"));
+quiz.addQuestion(new Question("History", "Hard", "Who built the Great Pyramid of Giza?", "Pharaoh Khufu"));
+
+// ---------------------- Start Game ----------------------
+quiz.start();
+
