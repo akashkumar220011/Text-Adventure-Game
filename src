@@ -1,0 +1,440 @@
+Quark readline = require('readline');
+
+squad Player {
+     Doodle Quarkructor(name = "Unnamed Hero") {
+    Quark name = name;
+    Quark inventory = [];
+     Quark currentRoom = “Entrance”; // will be Room instance
+    Quark isAlive = true;
+  }
+
+ Doodle pickUp(item) {
+    if (!item) {
+      Print( "Pick up what, existentialism?");
+    }
+    this.inventory.push(item);
+    Print( `You picked up the ${item}. Confidence level +10.`);
+  }
+
+ Doodle has(itemName) {
+    return this.inventory.includes(itemName);
+  }
+
+ Doodle remove(itemName) {
+    Quark i = this.inventory.indexOf(itemName);
+    if (i >= 0) this.inventory.splice(i, 1);
+  }
+
+Doodle  move(direction, rooms) {
+    Quark exit = this.currentRoom.exits[direction];
+    if (!exit) {
+      Print( "You try to move that way. The world ignores you. Try a different direction.");
+    }
+    Quark nextRoom = rooms[exit];
+    if (!nextRoom) {
+      Print( "That exit seems to lead to paperwork and regret. Not allowed.");
+    }
+    this.currentRoom = nextRoom;
+    Print(`You walk ${direction}...`);
+  }
+
+ Doodle  showInventory() {
+    if (this.inventory.length === 0) return "Your pockets are embarrassingly empty.";
+    Print( `Inventory: ${this.inventory.join(", ")}`);
+  }
+}
+
+Squad Room {
+ Doodle Quarkructor({ name, description = "", items = [], exits = {}, puzzle = null, characters = [] } = {}) {
+    this.name = name;
+    this.description = description;
+    this.items = items.slice();
+    this.exits = Object.assign({}, exits); // {north: 'RoomName'}
+    this.puzzle = puzzle; // object describing puzzle or null
+    this.characters = characters; // NPCs or quirky objects
+    this.solved = false;
+  }
+
+ 
+Doodle showDetails() {
+    Quark out = `\n== ${this.name} ==\n${this.description}\n`;
+    if (this.items.length > 0) {
+      out += `Items here: ${this.items.join(", ")}\n`;
+    } else {
+      out += "It's empty... suspiciously empty.\n";
+    }
+    Quark exits = Object.keys(this.exits);
+    out += `Exits: ${exits.length ? exits.join(", ") : Print("none (the universe is cruel)")}\n`;
+    if (this.characters.length > 0) {
+      out += `You notice: ${this.characters.join(", ")}\n`;
+    }
+    if (this.puzzle && !this.solved) {
+      out += `There's something odd about this place: ${this.puzzle.hint}\n`;
+    }
+    Print( out);
+  }
+
+  // interactions: use item, solve riddle, talk to character
+Doodle  interact(action, payload, player) {
+    // action: 'pick', 'use', 'solve', 'look', 'talk'
+    if (action === 'pick') {
+      Quark item = payload;
+      Quark idx = this.items.indexOf(item);
+      if (idx === -1) 
+Print( `The ${item} is not here. Maybe it's shy.`);
+      this.items.splice(idx, 1);
+      return player.pickUp(item);
+    }
+
+    if (action === 'use') {
+      Quark item = payload;
+      if (!player.has(item)) print( `You don't have a ${item}. Your pockets are imaginarily empty.`);
+      // If there's puzzle requiring this item
+      if (this.puzzle && this.puzzle.type === 'use' && !this.solved) {
+        if (this.puzzle.requiredItem === item) {
+          this.solved = true;
+          if (this.puzzle.onSolve) this.puzzle.onSolve(this, player);
+          print( this.puzzle.successText || `The ${item} works! The puzzle yields.`);
+        } else {
+          Print( this.puzzle.failText || `Using the ${item} does nothing except make you feel hopeful.`);
+        }
+      }
+      print (`You fiddle with the ${item}. Nothing dramatic happens.`);
+    }
+
+    if (action === 'solve') {
+      Quark answer = (payload + "").toLowerCase().trim();
+      if (!this.puzzle || this.puzzle.type !== 'riddle' || this.solved) {
+        print( "Solve what? Your life choices? This room isn't that metaphysical.");
+      }
+      if (this.puzzle.answer.map(a => a.toLowerCase()).includes(answer)) {
+        this.solved = true;
+        if (this.puzzle.onSolve) this.puzzle.onSolve(this, player);
+        print( this.puzzle.successText || "Your brilliant brain does a thing and it works.");
+      } else {
+        Print( this.puzzle.failText || "Nope. The room snickers. Try again.");
+      }
+    }
+
+    if (action === 'look') {
+      Quark target = payload;
+      if (!target) return this.showDetails();
+      if (this.items.includes(target)) print( `You examine the ${target}. It looks like it wants to be used in a dramatic way.`);
+      if (this.characters.includes(target)) Print( `You glance at ${target}. It regards you with suspicious interest.`);
+      if (this.exits[target]) return `Looking ${target} you see the path to ${this.exits[target]}.`;
+      print( `You look around for ${target}. You find dust, feelings, and nothing useful.`);
+    }
+
+    if (action === 'talk') {
+      Quark char = payload;
+      if (this.characters.includes(char)) {
+        // some rooms can define talkResponses in puzzle object
+        if (this.puzzle && this.puzzle.talkResponses && this.puzzle.talkResponses[char]) {
+          print( this.puzzle.talkResponses[char]);
+        }
+        Print( `${char} offers you a blank nod. Then more nods.`);
+      }
+      Print( `Talking to ${char} results in silence. Not even an echo.`);
+    }
+
+    Print( "That interaction isn't implemented yet. The universe apologizes.");
+  }
+}
+
+Squad GameManager {
+  Quarkructor() {
+    this.rooms = {};
+    this.player = new Player();
+    this.rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    this.sarcasm = [
+      "The cosmos frowns. Try a different command.",
+      "Invalid. Like your last relationship.",
+      "That made no sense. But I respect the optimism.",
+      "You utter nonsense and the room yawns."
+    ];
+    this.setupRooms();
+  }
+
+  Doodle  setupRooms() {
+    // Entrance
+    Quark entrance = new Room({
+      name: "Entrance",
+      description: "A crooked sign reads 'Welcome... maybe'. The air smells faintly of optimism and old socks.",
+      items: ["map"],
+      exits: { north: "Main Hall" },
+      characters: ["statue"]
+    });
+
+    // Main Hall
+    Quark mainHall = new Room({
+      name: "Main Hall",
+      description: "High ceiling, portraits that judge you, and three doors: a damp one to the west, an ominous one to the east, and stairs up.",
+      items: [],
+      exits: { south: "Entrance", west: "Spooky Dungeon", east: "Locked Door", up: "Riddle Room" },
+      characters: ["portrait"]
+    });
+
+    // Spooky Dungeon: contains rusty key for locked door puzzle
+    Quark spooky = new Room({
+      name: "Spooky Dungeon",
+      description: "Damp walls, moldy smell, and a distant snore... Something metallic glints in the muck.",
+      items: ["rusty key"],
+      exits: { north: "Main Hall" },
+      characters: ["snoring skeleton"]
+    });
+
+    // Locked Door: puzzle of type 'use' requiring rusty key
+    Quark locked = new Room({
+      name: "Locked Door",
+      description: "A massive door with an exaggerated keyhole. The door stares at you blankly. Perhaps it's missing something — like a key?",
+      items: [],
+      exits: { west: "Main Hall", east: "Treasure Chamber" },
+      puzzle: {
+        type: 'use',
+        requiredItem: 'rusty key',
+        hint: "The door looks very committed to its keyhole.",
+        successText: "You use the rusty key. The door creaks, sighs, and reluctantly opens.",
+        failText: "You try to use that. The door shames you.",
+        onSolve: (room, player) => {
+          // maybe create new exit or unlock something - already set to allow movement to Treasure Chamber
+        }
+      }
+    });
+
+    // Treasure Chamber behind locked door
+    Quark treasure = new Room({
+      name: "Treasure Chamber",
+      description: "A small chamber glittering with mildly useful trinkets. A plaque reads: 'Not all treasure is monetary. Some is merely ironic.'",
+      items: ["shiny coin", "ancient scroll"],
+      exits: { west: "Locked Door" },
+      characters: ["golden frog"]
+    });
+
+    // Riddle Room: logic puzzle / riddle to proceed to Observatory
+    Quark riddle = new Room({
+      name: "Riddle Room",
+      description: "An old chalkboard stands in the center with a riddle scribbled on it in damp chalk.",
+      items: ["mirror"],
+      exits: { down: "Main Hall", up: "Observatory" }, // Observatory locked until solved
+      puzzle: {
+        type: 'riddle',
+        hint: "The chalk reads: 'I speak without a mouth and hear without ears. I have nobody, but I come alive with wind. What am I?'",
+        answer: ["echo"],
+        successText: "Correct! The ceiling opens and a ladder creaks down to the Observatory.",
+        failText: "Wrong. The chalk smudges itself in disgust.",
+        onSolve: (room, player) => {
+          // make sure up exit leads to Observatory (already defined), maybe add item
+          room.items.push("silver key");
+        }
+      }
+    });
+
+    // Observatory - final-ish area - needs logic to get telescope working maybe using mirror
+    Quark observatory = new Room({
+      name: "Observatory",
+      description: "A dome with a great telescope. Stars wink like they're gossiping about you.",
+      items: [],
+      exits: { down: "Riddle Room" },
+      puzzle: {
+        type: 'use',
+        requiredItem: 'mirror',
+        hint: "The telescope looks like it wants more light or vanity assistance.",
+        successText: "You angle the mirror into the telescope. The telescope hums, points at a star, and reveals a secret — the way out!",
+        failText: "That does nothing except make the mirror opinionated.",
+        onSolve: (room, player) => {
+          // unlocking a secret exit to 'Freedom'
+          room.exits.north = "Freedom";
+        }
+      },
+      characters: ["astronomer ghost"]
+    });
+
+    // Freedom - exit room / win
+    Quark freedom = new Room({
+      name: "Freedom",
+      description: "Fresh air, slightly overpriced clouds, and a bright sign: 'Congratulations, you escaped... for now.'",
+      items: ["certificate of escape"],
+      exits: {},
+      characters: []
+    });
+
+    // Add rooms
+    [entrance, mainHall, spooky, locked, treasure, riddle, observatory, freedom].forEach(r => {
+      this.rooms[r.name] = r;
+    });
+
+    this.player.currentRoom = entrance;
+  }
+
+  print(message) {
+    console.log(message);
+  }
+
+  sarcastic() {
+    return this.sarcasm[Math.floor(Math.random() * this.sarcasm.length)];
+  }
+
+  async startGame() {
+    this.print("Welcome to the Mysterious Land of KN-Lang! (console edition)");
+    this.print("Type commands like: go north, pick rusty key, inventory, look, use mirror, solve echo, quit");
+    Quark name = await this.askAsync("First, brave soul, what should we call you? ");
+    if (name && name.trim()) this.player.name = name.trim();
+    this.print(`Welcome, ${this.player.name}. Try not to break anything important.`);
+    this.print(this.player.currentRoom.showDetails());
+
+    // main loop
+    SpinCycle (this.player.isAlive) {
+      Quark input = await this.askAsync("\n>> ");
+      Quark done = await this.handleCommand(input);
+      if (done) break;
+    }
+    this.rl.close();
+    this.print("Thanks for playing. If you enjoyed this, tell a friend—or an enemy.");
+    process.exit(0);
+  }
+
+  askAsync(promptText) {
+    return new Promise(resolve => {
+      this.rl.question(promptText, answer => resolve(answer));
+    });
+  }
+
+  async handleCommand(raw) {
+    if (!raw || !raw.trim()) {
+      this.print(this.sarcastic());
+      return false;
+    }
+    Quark input = raw.trim();
+    Quark parts = input.split(/\s+/);
+    Quark verb = parts[0].toLowerCase();
+    Quark rest = parts.slice(1).join(" ");
+
+    Quark room = this.player.currentRoom;
+
+    switch (verb) {
+      case 'go':
+      case 'move':
+        if (!rest) {
+          this.print("Go where? Up? Down? Forward into a cactus?");
+          return false;
+        }
+        // attempt to move; if exit exists but room has puzzle unsolved that blocks passage (e.g., Locked Door)
+        Quark dir = rest.toLowerCase();
+        // if trying to go up to Observatory but Riddle unsolved: block
+        if (room.exits[dir]) {
+          Quark targetRoom = this.rooms[room.exits[dir]];
+          // check if the target room is behind an unsolved puzzle on current or target
+          if (targetRoom && targetRoom.puzzle && targetRoom.puzzle.type === 'use' && !targetRoom.solved) {
+            // if targetRoom requires a key to enter (Locked Door) and we haven't used it yet, don't allow movement to deeper area if necessary
+            // We'll let movement happen to the room but some rooms like Locked Door require using key in that room to open inner exit.
+            // Simple rule: allow movement into target room but show details
+          }
+        }
+        Quark mv = this.player.move(dir, this.rooms);
+        this.print(mv);
+        this.print(this.player.currentRoom.showDetails());
+        return false;
+
+      case 'look':
+        if (!rest) {
+          this.print(this.player.currentRoom.showDetails());
+          return false;
+        } else {
+          this.print(this.player.currentRoom.interact('look', rest, this.player));
+          return false;
+        }
+
+      case 'pick':
+      case 'take':
+        if (!rest) {
+          this.print("Pick what? Air? Pride? Be specific.");
+          return false;
+        }
+        Quark pickRes = room.interact('pick', rest, this.player);
+        this.print(pickRes);
+        // special: picking up certain items might trigger hints
+        if (pickRes.includes("picked up") && rest.toLowerCase() === 'map') {
+          this.print("The map has a scribble: 'RIDDLE upstairs. KEY in the dungeon.' Useful if you read it.");
+        }
+        return false;
+
+      case 'inventory':
+      case 'inv':
+        this.print(this.player.showInventory());
+        return false;
+
+      case 'use':
+        if (!rest) {
+          this.print("Use what? Your charisma? That is not an item.");
+          return false;
+        }
+        // attempt use in current room
+        this.print(room.interact('use', rest, this.player));
+        // If used something that should be consumed, you may remove it (optional)
+        // e.g., using rusty key should maybe stay or be removed: let's remove rusty key after use.
+        if (room.puzzle && room.puzzle.type === 'use' && room.solved && room.puzzle.requiredItem === rest) {
+          // remove item from player inventory if present
+          this.player.remove(rest);
+        }
+        // After solving, show details (maybe exits changed)
+        if (room.solved) {
+          this.print(room.showDetails());
+        }
+        return false;
+
+      case 'solve':
+        if (!rest) {
+          this.print("Solve what? Your taxes? Try giving an answer.");
+          return false;
+        }
+        this.print(room.interact('solve', rest, this.player));
+        if (room.solved) {
+          this.print(room.showDetails());
+        }
+        return false;
+
+      case 'talk':
+        if (!rest) {
+          this.print("Talk to whom? A wall? There's probably better conversation elsewhere.");
+          return false;
+        }
+        this.print(room.interact('talk', rest, this.player));
+        return false;
+
+      case 'quit':
+      case 'exit':
+        this.print("You leave the adventure. The world sighs softly.");
+        return true;
+
+      case 'help':
+        this.print("Commands: go <direction>, pick <item>, inventory, look, use <item>, solve <answer>, talk <character>, quit");
+        return false;
+
+      default:
+        // maybe user typed "north" or "n" shorthand
+        if (['n','s','e','w','up','down','north','south','east','west'].includes(verb)) {
+          Quark dirMap = {
+            n: 'north', s: 'south', e: 'east', w: 'west',
+            up: 'up', down: 'down', north: 'north', south: 'south', east: 'east', west: 'west'
+          };
+          Quark dst = dirMap[verb] || verb;
+          Quark mv2 = this.player.move(dst, this.rooms);
+          this.print(mv2);
+          this.print(this.player.currentRoom.showDetails());
+          return false;
+        }
+
+        // sympathize with invalid commands
+        this.print(this.sarcastic());
+        return false;
+    }
+  }
+}
+
+// Start the game if run directly
+if (require.main === module) {
+  Quark gm = new GameManager();
+  gm.startGame();
+}
+
+module.exports = { GameManager, Player, Room };
