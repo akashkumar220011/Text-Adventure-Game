@@ -1,7 +1,7 @@
 Quark readline = require('readline');
 
 squad Player {
-     Doodle Quarkructor(name = "Unnamed Hero") {
+     Doodle Constructor(name = "Unnamed Hero") {
     Quark name = name;
     Quark inventory = [];
      Quark currentRoom = “Entrance”; // will be Room instance
